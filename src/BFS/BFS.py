@@ -1,55 +1,59 @@
-class KB(object):
-	def __init__(self):
+from queue import Queue
+import random
+
+
+def BFS(kb, entity1, entity2):
+	res = foundPaths(kb)
+	res.markFound(entity1, None, None)
+	q = Queue()
+	q.put(entity1)
+	while(not q.empty()):
+		curNode = q.get()
+		for path in kb.getPathsFrom(curNode):
+			nextEntity = path.connected_entity
+			connectRelation = path.relation
+			if(not res.isFound(nextEntity)):
+				q.put(nextEntity)
+				res.markFound(nextEntity, curNode, connectRelation)
+			if(nextEntity == entity2):
+				entity_list, path_list = res.reconstructPath(entity1, entity2)
+				return (True, entity_list, path_list)
+	return (False, None, None)
+
+
+def test():
+	pass
+
+
+class foundPaths(object):
+	def __init__(self, kb):
 		self.entities = {}
+		for entity, relations in kb.entities.items():
+			self.entities[entity] = (False, "", "")
 
-	def addRelation(self, entity1, relation, entity2):
-		if self.entities.has_key(entity1):
-			self.entities[entity1].append(Path(relation, entity2))
-		else:
-			self.entities[entity1] = [Path(relation, entity2)]
+	def isFound(self, entity):
+		return self.entities[entity][0]
+			
 
-	def getPathsFrom(self, entity):
-		return self.entities[entity]
+	def markFound(self, entity, prevNode, relation):
+		self.entities[entity] = (True, prevNode, relation)
 
-	def removePath(self, entity1, entity2):
-		for idx, path in enumerate(self.entities[entity1]):
-			if(path.connected_entity == entity2):
-				del self.entities[entity1][idx]
-				break
-		for idx, path in enumerate(self.entities[entity2]):
-			if(path.connected_entity == entity1):
-				del self.entities[entity2][idx]
-				break
+	def reconstructPath(self, entity1, entity2):
+		entity_list = []
+		path_list = []
+		curNode = entity2
+		while(curNode != entity1):
+			entity_list.append(curNode)
 
-	def pickRandomIntermediatesBetween(self, entity1, entity2, num):
-		#TO DO: COULD BE IMPROVED BY NARROWING THE RANGE OF RANDOM EACH TIME ITERATIVELY CHOOSE AN INTERMEDIATE  
-		from sets import Set
-		import random
-
-		res = Set()
-		if num > len(self.entities) - 2:
-			raise ValueError('Number of Intermediates picked is larger than possible', 'num_entities: {}'.format(len(self.entities)), 'num_itermediates: {}'.format(num))
-		for i in range(num):
-			itermediate = random.choice(self.entities.keys())
-			while itermediate in res or itermediate == entity1 or itermediate == entity2:
-				itermediate = random.choice(self.entities.keys())
-			res.add(itermediate)
-		return list(res)
+			path_list.append(self.entities[curNode][2])
+			curNode = self.entities[curNode][1]
+		entity_list.append(curNode)
+		entity_list.reverse()
+		path_list.reverse()
+		return (entity_list, path_list)
 
 	def __str__(self):
-		string = ""
-		for entity in self.entities:
-			string += entity + ','.join(str(x) for x in self.entities[entity])
-			string += '\n'
-		return string
-
-
-class Path(object):
-	def __init__(self, relation, connected_entity):
-		self.relation = relation
-		self.connected_entity = connected_entity
-
-	def __str__(self):
-		return "\t{}\t{}".format(self.relation, self.connected_entity)
-
-	__repr__ = __str__
+		res = ""
+		for entity, status in self.entities.items():
+			res += entity + "[{},{},{}]".format(status[0],status[1],status[2])
+		return res			
