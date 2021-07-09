@@ -35,8 +35,8 @@ model_name = 'DeepPath'
 
 relation = sys.argv[1]
 # episodes = int(sys.argv[2])
-graphpath = os.path.join(dataPath, 'tasks', relation, 'graph.txt')
-relationPath = os.path.join(dataPath, 'tasks', relation, 'train_pos')
+graphpath = dataPath + 'tasks/' + relation + '/' + 'graph.txt'
+relationPath = dataPath + 'tasks/' + relation + '/' + 'train_pos'
 
 
 class SupervisedPolicy(nn.Module):
@@ -61,7 +61,7 @@ class SupervisedPolicy(nn.Module):
 
 def train_deep_path():
 
-    policy_network = SupervisedPolicy()
+    policy_network = SupervisedPolicy(state_dim, action_space)
     f = open(relationPath)
     train_data = f.readlines()
     f.close()
@@ -78,7 +78,6 @@ def train_deep_path():
 
         env = KGEnvironment(dataPath, train_data[episode % num_samples])
         sample = train_data[episode % num_samples].split()
-
         try:
             good_episodes = teacher(sample[0], sample[1], 5, env, graphpath)
         except Exception as e:
@@ -91,11 +90,10 @@ def train_deep_path():
             for t, transition in enumerate(item):
                 state_batch.append(transition.state)
                 action_batch.append(transition.action)
-            state_batch = np.squeeze(state_batch)
-            state_batch = np.reshape(state_batch, [-1, state_dim])
-
-            prediction = policy_network(state_batch, action_batch)
-            loss = policy_network.compute_loss(prediction)
+            state_batch = torch.FloatTensor(state_batch).squeeze(dim=1)
+            action_batch = torch.LongTensor(action_batch)
+            prediction = policy_network(state_batch)
+            loss = policy_network.compute_loss(prediction, action_batch)
             loss.backward()
 
             policy_network.optimizer.step()
