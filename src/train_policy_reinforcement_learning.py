@@ -13,6 +13,9 @@ import torch.optim as optim
 from networks import PolicyNN, ValueNN
 from utils import *
 from environment import KGEnvironment
+from train_policy_supervised_learning import PolicyNetwork
+
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 # hyperparameters
 state_dim = 200
@@ -28,34 +31,14 @@ target_update_freq = 1000
 max_steps = 50
 max_steps_test = 50
 
-dataPath = '../NELL-995/'
-model_dir = '../model'
-model_name = 'DeepPath'
-
 relation = sys.argv[1]
 task = sys.argv[2]
 graphpath = os.path.join(dataPath, 'tasks', relation, 'graph.txt')
 relationPath = os.path.join(dataPath, 'tasks/', relation, 'train_pos')
 
-class ReinforcementLearningPolicy(nn.Module):
-
-    # TODO: Add regularization to policy neural net and add regularization losses to total loss
-    def __init__(self, state_dim, action_space, learning_rate=0.0001):
-        super(ReinforcementLearningPolicy, self).__init__()
-        self.action_space = action_space
-        self.policy_nn = PolicyNN(state_dim, action_space)
-        self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate)
-
-    def forward(self, state):
-        action_prob = self.policy_nn(state)
-        return action_prob
-
-    def compute_loss(self, action_prob, target, action):
-        # TODO: Add regularization loss
-        action_mask = F.one_hot(action, num_classes=self.action_space) > 0
-        picked_action_prob = action_prob[action_mask]
-        loss = torch.sum(-torch.log(picked_action_prob)*target)
-        return loss
+dataPath = '../NELL-995/'
+model_dir = '../models'
+model_name = 'DeepPath' + relation
 
 
 def REINFORCE(training_pairs, policy_network, num_episodes):
@@ -82,9 +65,9 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
         state_batch_negative = []
         action_batch_negative = []
         for t in count():
-            state_vec = env.idx_state(state_idx)
+            state_vec = torch.from_numpy(env.idx_state(state_idx)).float().to(device)
             action_probs = policy_network(state_vec)
-            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs))
+            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.detach().numpy()))
             reward, new_state, done = env.interact(state_idx, action_chosen)
 
             if reward == -1:  # the action fails for this step
@@ -102,8 +85,10 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
         # Discourage the agent when it choose an invalid step
         if len(state_batch_negative) != 0:
             print('Penalty to invalid steps:', len(state_batch_negative))
-            predictions = policy_network(np.reshape(state_batch_negative, (-1, state_dim)))
-            loss = policy_network.compute_loss(predictions, -0.05, action_batch_negative)
+            state_batch_negative = torch.cat(state_batch_negative).to(device)
+            action_batch_negative = torch.LongTensor(action_batch_negative).to(device)
+            predictions = policy_network(state_batch_negative)
+            loss = policy_network.compute_loss_rl(predictions, -0.05, action_batch_negative)
             loss.backward()
             policy_network.optimizer.step()
 
@@ -142,9 +127,10 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
                 if transition.reward == 0:
                     state_batch.append(transition.state)
                     action_batch.append(transition.action)
-
-            predictions = policy_network(np.reshape(state_batch, (-1, state_dim)))
-            loss = policy_network.compute_loss(predictions, total_reward, action_batch_negative)
+            state_batch = torch.cat(state_batch).to(device)
+            action_batch = torch.LongTensor(action_batch).to(device)
+            predictions = policy_network(state_batch)
+            loss = policy_network.compute_loss_rl(predictions, total_reward, action_batch)
             loss.backward()
             policy_network.optimizer.step()
         else:
@@ -158,10 +144,12 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
                 if transition.reward == 0:
                     state_batch.append(transition.state)
                     action_batch.append(transition.action)
-
-
-            predictions = policy_network(np.reshape(state_batch, (-1, state_dim)))
-            loss = policy_network.compute_loss(predictions, total_reward, action_batch_negative)
+            if len(state_batch) == 0:
+                continue
+            state_batch = torch.cat(state_batch).to(device)
+            action_batch = torch.LongTensor(action_batch).to(device)
+            predictions = policy_network(state_batch)
+            loss = policy_network.compute_loss_rl(predictions, total_reward, action_batch)
             loss.backward()
             policy_network.optimizer.step()
 
@@ -175,9 +163,10 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
                     for t, transition in enumerate(item):
                         teacher_state_batch.append(transition.state)
                         teacher_action_batch.append(transition.action)
-
-                    predictions = policy_network(np.reshape(state_batch, (-1, state_dim)))
-                    loss = policy_network.compute_loss(predictions, 1, action_batch_negative)
+                    teacher_state_batch = torch.cat(teacher_state_batch).to(device)
+                    teacher_action_batch = torch.LongTensor(teacher_action_batch).to(device)
+                    predictions = policy_network(teacher_state_batch)
+                    loss = policy_network.compute_loss_rl(predictions, 1, teacher_action_batch)
                     loss.backward()
                     policy_network.optimizer.step()
 
@@ -211,13 +200,13 @@ def retrain():
 
     # TODO: Fix this - load saved model and optimizer state to Policy_network.policy_nn.
     print('Start retraining')
-    policy_network = ReinforcementLearningPolicy(state_dim, action_space)
+    policy_network = PolicyNetwork(state_dim, action_space)
 
     f = open(relationPath)
     training_pairs = f.readlines()
     f.close()
 
-    policy_network = torch.load('models/policy_supervised_' + relation)
+    policy_network = torch.load(os.path.join(model_dir, 'policy_supervised_' + relation + '.pt'))
     print("sl_policy restored")
     episodes = len(training_pairs)
     if episodes > 300:
@@ -225,7 +214,7 @@ def retrain():
     REINFORCE(training_pairs, policy_network, episodes)
     # save model
     print("Saving model to disk...")
-    torch.save(policy_network, os.path.join(model_dir, model_name + '.pt'))
+    torch.save(policy_network, os.path.join(model_dir, model_name + relation + '.pt'))
     print('Retrained model saved')
 
 def test():
@@ -245,7 +234,7 @@ def test():
     path_set = set()
 
 
-    policy_network = torch.load('models/policy_retrained' + relation)
+    policy_network = torch.load(os.path.join(model_dir, model_name + relation + '.pt'))
     print('Model reloaded')
 
     if test_num > 500:
@@ -260,12 +249,9 @@ def test():
         transitions = []
 
         for t in count():
-            state_vec = env.idx_state(state_idx)
+            state_vec = torch.from_numpy(env.idx_state(state_idx)).float().to(device)
             action_probs = policy_network(state_vec)
-
-            action_probs = np.squeeze(action_probs)
-
-            action_chosen = np.random.choice(np.arange(action_space), p=action_probs)
+            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.detach().numpy()))
             reward, new_state, done = env.interact(state_idx, action_chosen)
             new_state_vec = env.idx_state(new_state)
             transitions.append(Transition(state=state_vec, action=action_chosen, next_state=new_state_vec, reward=reward))
