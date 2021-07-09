@@ -15,6 +15,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 # hyperparameters
 state_dim = 200
 action_space = 400
@@ -29,21 +31,21 @@ target_update_freq = 1000
 max_steps = 50
 max_steps_test = 50
 
-dataPath = '../NELL-995/'
-model_dir = '../model'
-model_name = 'DeepPath'
-
 relation = sys.argv[1]
+
+dataPath = '../NELL-995/'
+model_dir = '../models'
+model_name = 'policy_supervised_' + relation
 # episodes = int(sys.argv[2])
 graphpath = dataPath + 'tasks/' + relation + '/' + 'graph.txt'
 relationPath = dataPath + 'tasks/' + relation + '/' + 'train_pos'
 
 
-class SupervisedPolicy(nn.Module):
+class PolicyNetwork(nn.Module):
 
     # TODO: Add regularization to policy neural net and add regularization losses to total loss
     def __init__(self, state_dim, action_space, learning_rate=0.0001):
-        super(SupervisedPolicy, self).__init__()
+        super(PolicyNetwork, self).__init__()
         self.action_space = action_space
         self.policy_nn = PolicyNN(state_dim, action_space)
         self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate)
@@ -58,12 +60,19 @@ class SupervisedPolicy(nn.Module):
         picked_action_prob = action_prob[action_mask]
         loss = torch.sum(-torch.log(picked_action_prob))
         return loss
+    
+    def compute_loss_rl(self, action_prob, target, action):
+        # TODO: Add regularization loss
+        action_mask = F.one_hot(action, num_classes=self.action_space) > 0
+        picked_action_prob = action_prob[action_mask]
+        loss = torch.sum(-torch.log(picked_action_prob)*target)
+        return loss
 
 def train_deep_path():
 
-    policy_network = SupervisedPolicy(state_dim, action_space)
+    policy_network = PolicyNetwork(state_dim, action_space).to(device)
     f = open(relationPath)
-    train_data = f.readlines()
+    train_data = f.readlines()[:2]
     f.close()
     num_samples = len(train_data)
 
@@ -90,8 +99,8 @@ def train_deep_path():
             for t, transition in enumerate(item):
                 state_batch.append(transition.state)
                 action_batch.append(transition.action)
-            state_batch = torch.FloatTensor(state_batch).squeeze(dim=1)
-            action_batch = torch.LongTensor(action_batch)
+            state_batch = torch.FloatTensor(state_batch).squeeze(dim=1).to(device)
+            action_batch = torch.LongTensor(action_batch).to(device)
             prediction = policy_network(state_batch)
             loss = policy_network.compute_loss(prediction, action_batch)
             loss.backward()
@@ -100,7 +109,7 @@ def train_deep_path():
 
     # save model
     print("Saving model to disk...")
-    torch.save(policy_network, os.path.join(model_dir, model_name + '.pt'))
+    torch.save(policy_network.cpu(), os.path.join(model_dir, model_name + '.pt'))
 
 
 def test(test_episodes):
@@ -114,7 +123,7 @@ def test(test_episodes):
     print(len(test_data))
     success = 0
 
-    policy_network = torch.load(os.path.join(model_dir, model_name + '.pt'))
+    policy_network = torch.load(os.path.join(model_dir, model_name + '.pt')).to(device)
     print('Model reloaded')
     for episode in range(len(test_data)):
         print('Test sample %d: %s' % (episode, test_data[episode][:-1]))
@@ -122,7 +131,7 @@ def test(test_episodes):
         sample = test_data[episode].split()
         state_idx = [env.entity2id_[sample[0]], env.entity2id_[sample[1]], 0]
         for t in count():
-            state_vec = env.idx_state(state_idx)
+            state_vec = env.idx_state(state_idx).to(device)
             action_probs = policy_network(state_vec)
             action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs))
             reward, new_state, done = env.interact(state_idx, action_chosen)
