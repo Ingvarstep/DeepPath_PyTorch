@@ -1,7 +1,8 @@
 #!/bin/bash
 
 relation=$1
-python train_with_supervised_policy.py $relation
-python train_with_reinforcement_policy.py $relation retrain
-python train_with_reinforcement_policy.py $relation test
+python3 train_policy_supervised_learning.py $relation
+python3 train_policy_reinforcement_learning.py $relation retrain
+python3 train_policy_reinforcement_learning.py $relation test
+
 
