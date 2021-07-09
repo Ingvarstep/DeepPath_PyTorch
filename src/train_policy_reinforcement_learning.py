@@ -207,6 +207,7 @@ def retrain():
     f.close()
 
     policy_network = torch.load(os.path.join(model_dir, 'policy_supervised_' + relation + '.pt'))
+    torch.save(policy_network, os.path.join(model_dir, model_name + relation + '.pt'))
     print("sl_policy restored")
     episodes = len(training_pairs)
     if episodes > 300:
@@ -283,7 +284,12 @@ def test():
                         state_batch.append(transition.state)
                         action_batch.append(transition.action)
                 # TODO: WUT?? Training in test()
-                policy_network.update(np.reshape(state_batch, (-1, state_dim)), 0.1 * diverse_reward, action_batch)
+                state_batch = torch.cat(state_batch).to(device)
+                action_batch = torch.LongTensor(action_batch).to(device)
+                predictions = policy_network(state_batch)
+                loss = policy_network.compute_loss_rl(predictions, total_reward, action_batch)
+                loss.backward()
+                policy_network.optimizer.step()
             path_set.add(' -> '.join(env.path_relations))
 
     for path in path_found:
@@ -324,6 +330,3 @@ if __name__ == "__main__":
         retrain()
         test()
 # retrain()
-
-
-
