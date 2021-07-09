@@ -28,7 +28,8 @@ class ValueNN(nn.Module):
         self.fc2 = nn.Linear(64, 1, bias=True)
 
     def forward(self, state):
-        value_estimated = self.fc2(F.relu(self.fc1(state)))
+        y = F.relu(self.fc1(state))
+        value_estimated = self.fc2(y)
         return torch.squeeze(value_estimated)
 
 class QNetwork(nn.Module):
@@ -40,5 +41,7 @@ class QNetwork(nn.Module):
         self.fc3 = nn.Linear(64, action_space)
 
     def forward(self, state):
-        action_values = self.fc3(F.relu(self.fc2(F.relu(self.fc1(state)))))
+        y = F.relu(self.fc1(state))
+        y = F.relu(self.fc2(y))
+        action_values = self.fc3(y)
         return action_values
