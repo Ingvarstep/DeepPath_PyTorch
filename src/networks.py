@@ -11,10 +11,13 @@ class PolicyNN(nn.Module):
         self.fc1 = nn.Linear(state_dim, 512, bias=True)
         self.fc2 = nn.Linear(512, 1024, bias=True)
         self.fc3 = nn.Linear(1024, action_dim, bias=True)
-        self.softmax = nn.Softmax(action_dim)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, state):
-        action_probs = self.softmax(F.relu(self.fc3(F.relu(self.fc2(F.relu(self.fc1(state)))))))
+        y = F.relu(self.fc1(state))
+        y = F.relu(self.fc2(y))
+        y = F.relu(self.fc3(y))
+        action_probs = self.softmax(y)
         return action_probs
 
 class ValueNN(nn.Module):
