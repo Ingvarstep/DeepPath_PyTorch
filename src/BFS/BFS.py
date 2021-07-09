@@ -28,7 +28,7 @@ def test():
 class foundPaths(object):
 	def __init__(self, kb):
 		self.entities = {}
-		for entity, relations in kb.entities.iteritems():
+		for entity, relations in kb.entities.items():
 			self.entities[entity] = (False, "", "")
 
 	def isFound(self, entity):
@@ -54,6 +54,6 @@ class foundPaths(object):
 
 	def __str__(self):
 		res = ""
-		for entity, status in self.entities.iteritems():
+		for entity, status in self.entities.items():
 			res += entity + "[{},{},{}]".format(status[0],status[1],status[2])
 		return res			
