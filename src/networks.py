@@ -26,9 +26,9 @@ class MLP(nn.Module):
                 X_batch = training_features[batch_indexes].to(device)
                 y_batch = train_labels[batch_indexes].to(device)
         
-                preds = F.sigmoid(self.fc(X_batch)) 
+                preds = torch.sigmoid(self.fc(X_batch)) 
         
-                loss_value = self.loss_func(preds, y_batch)
+                loss_value = self.loss_func(preds.squeeze(), y_batch)
                 loss_value.backward()
         
                 self.optimizer.step()
