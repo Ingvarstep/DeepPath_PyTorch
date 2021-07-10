@@ -5,8 +5,7 @@ PyTorch implementation of the algorithm DeepPath. Paper available here: https://
 The code has been adapted from the original DeepPath code in TensorFlow available here: https://github.com/xwhan/DeepPath
 
 ## Access the dataset
-For dawnloading NELL-995 dataset run upload.sh script; FB15k-237 is avaliable here https://drive.google.com/file/d/1klWL11nW3ZS6b2MtLW0MHnXu-XlJqDyA/view?usp=sharing
-
+For dawnloading NELL-995 dataset run upload.sh script; FB15k-237 is avaliable [here](https://drive.google.com/file/d/1klWL11nW3ZS6b2MtLW0MHnXu-XlJqDyA/view?usp=sharing)
 ## How to run our code 
 1. unzip the data, put the data folder in the code directory
 2. run the following scripts within `scripts/`
