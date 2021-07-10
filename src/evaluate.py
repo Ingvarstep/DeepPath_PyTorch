@@ -1,11 +1,11 @@
-#!/usr/bin/python
-
+!/usr/bin/python
 import sys
 import numpy as np
 from BFS.KB import *
-from sklearn import linear_model
-from keras.models import Sequential 
-from keras.layers import Dense, Activation
+from networks import MLP
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 relation = sys.argv[1]
 
@@ -28,18 +28,17 @@ def train(kb, kb_inv, named_paths):
 		train_pairs.append((e1,e2))
 		label = 1 if line[-2] == '+' else 0
 		train_labels.append(label)
+    	train_labels = torch.FloatTensor(train_labels)
 	training_features = []
 	for sample in train_pairs:
 		feature = []
 		for path in named_paths:
-				feature.append(int(bfs_two(sample[0], sample[1], path, kb, kb_inv)))
-		training_features.append(feature)
-	model = Sequential()
+			feature.append(int(bfs_two(sample[0], sample[1], path, kb, kb_inv)))
+	      	training_features.append(feature)
+    	training_features = torch.FloatTensor(training_features)
 	input_dim = len(named_paths)
-	model.add(Dense(1, activation='sigmoid' ,input_dim=input_dim))
-	model.compile(optimizer = 'rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-	model.fit(training_features, train_labels, nb_epoch=300, batch_size=128)
-	return model
+    	model = MLP(input_dim = input_dim, n_epochs = 300, batch_size = 120)
+    	model.train(training_features, train_labels)
 
 def get_features():
 	stats = {}
