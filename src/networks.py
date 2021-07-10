@@ -13,7 +13,7 @@ class MLP(nn.Module):
         self.loss_func = torch.nn.BCELoss()
 
     def forward(self, x):
-        return F.sigmoid(self.fc(x))
+        return torch.sigmoid(self.fc(x))
     
     def train(self, training_features, train_labels):
         for epoch in range(self.n_epochs):
