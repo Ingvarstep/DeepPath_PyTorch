@@ -1,11 +1,10 @@
 #!/usr/bin/python
+
 import sys
 import numpy as np
 from BFS.KB import *
-from networks import MLP
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from networks import MLP
 
 relation = sys.argv[1]
 
@@ -28,17 +27,18 @@ def train(kb, kb_inv, named_paths):
 		train_pairs.append((e1,e2))
 		label = 1 if line[-2] == '+' else 0
 		train_labels.append(label)
-    	train_labels = torch.FloatTensor(train_labels)
 	training_features = []
 	for sample in train_pairs:
 		feature = []
 		for path in named_paths:
-			feature.append(int(bfs_two(sample[0], sample[1], path, kb, kb_inv)))
-	      	training_features.append(feature)
-    	training_features = torch.FloatTensor(training_features)
+				feature.append(int(bfs_two(sample[0], sample[1], path, kb, kb_inv)))
+		training_features.append(feature)
+	training_features = torch.FloatTensor(training_features)
 	input_dim = len(named_paths)
-    	model = MLP(input_dim = input_dim, n_epochs = 300, batch_size = 120)
-    	model.train(training_features, train_labels)
+	model = MLP(input_dim = input_dim, n_epochs = 300, batch_size = 120)
+	train_labels = torch.FloatTensor(train_labels)
+	model.train(training_features, train_labels)
+	return model
 
 def get_features():
 	stats = {}
@@ -64,7 +64,7 @@ def get_features():
 	paths = f.readlines()
 	f.close()
 
-	print len(paths)
+	print(len(paths))
 
 	for line in paths:
 		path = line.rstrip()
@@ -83,7 +83,7 @@ def get_features():
 			useful_paths.append(pathIndex)
 			named_paths.append(pathName)
 
-	print 'How many paths used: ', len(useful_paths)
+	print('How many paths used: ', len(useful_paths))
 	return useful_paths, named_paths
 
 def evaluate_logic():
@@ -139,7 +139,7 @@ def evaluate_logic():
 
 			#features = features*path_weights
 
-			score = model.predict(np.reshape(features, [1,-1]))
+			score = model(torch.FloatTensor(features))
 			#score = np.sum(features)
 
 			score_all.append(score[0])
@@ -148,7 +148,7 @@ def evaluate_logic():
 		else:
 			query = sample[0]
 			count = zip(y_score, y_true)
-			count.sort(key = lambda x:x[0], reverse=True)
+			count = sorted(count, key = lambda x:x[0], reverse=True)
 			ranks = []
 			correct = 0
 			for idx_, item in enumerate(count):
@@ -173,7 +173,7 @@ def evaluate_logic():
 			#features = features*path_weights
 			#score = np.inner(features, path_weights)
 			#score = np.sum(features)
-			score = model.predict(np.reshape(features,[1,-1]))
+			score = model(torch.FloatTensor(features))
 
 			score_all.append(score[0])
 			y_score.append(score)
@@ -181,7 +181,7 @@ def evaluate_logic():
 			# print y_score, y_true
 
 	count = zip(y_score, y_true)
-	count.sort(key = lambda x:x[0], reverse=True)
+	count = sorted(count, key = lambda x:x[0], reverse=True)
 	ranks = []
 	correct = 0
 	for idx_, item in enumerate(count):
@@ -194,7 +194,7 @@ def evaluate_logic():
 	score_label_ranked = sorted(score_label, key = lambda x:x[0], reverse=True)
 
 	mean_ap = np.mean(aps)
-	print 'RL MAP: ', mean_ap
+	print('RL MAP: ', mean_ap)
 
 
 def bfs_two(e1,e2,path,kb,kb_inv):
