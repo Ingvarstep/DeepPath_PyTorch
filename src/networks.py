@@ -18,10 +18,10 @@ class MLP(nn.Module):
     def train(self, training_features, train_labels):
         for epoch in range(self.n_epochs):
             order = torch.randperm(len(training_features))
-            for start_index in range(0, len(training_features), batch_size):
+            for start_index in range(0, len(training_features), self.batch_size):
                 self.optimizer.zero_grad()
         
-                batch_indexes = order[start_index:start_index+batch_size]
+                batch_indexes = order[start_index:start_index+self.batch_size]
         
                 X_batch = training_features[batch_indexes].to(device)
                 y_batch = train_labels[batch_indexes].to(device)
