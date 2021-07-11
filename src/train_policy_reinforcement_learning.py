@@ -67,7 +67,7 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
         for t in count():
             state_vec = torch.from_numpy(env.idx_state(state_idx)).float().to(device)
             action_probs = policy_network(state_vec)
-            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.detach().numpy()))
+            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.cpu().detach().numpy()))
             reward, new_state, done = env.interact(state_idx, action_chosen)
 
             if reward == -1:  # the action fails for this step
@@ -206,7 +206,7 @@ def retrain():
     training_pairs = f.readlines()
     f.close()
 
-    policy_network = torch.load(os.path.join(model_dir, 'policy_supervised_' + relation + '.pt'))
+    policy_network = torch.load(os.path.join(model_dir, 'policy_supervised_' + relation + '.pt')).to(device)
     torch.save(policy_network, os.path.join(model_dir, model_name + relation + '.pt'))
     print("sl_policy restored")
     episodes = len(training_pairs)
@@ -235,7 +235,7 @@ def test():
     path_set = set()
 
 
-    policy_network = torch.load(os.path.join(model_dir, model_name + relation + '.pt'))
+    policy_network = torch.load(os.path.join(model_dir, model_name + relation + '.pt')).to(device)
     print('Model reloaded')
 
     if test_num > 500:
@@ -252,7 +252,7 @@ def test():
         for t in count():
             state_vec = torch.from_numpy(env.idx_state(state_idx)).float().to(device)
             action_probs = policy_network(state_vec)
-            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.detach().numpy()))
+            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.cpu().detach().numpy()))
             reward, new_state, done = env.interact(state_idx, action_chosen)
             new_state_vec = env.idx_state(new_state)
             transitions.append(Transition(state=state_vec, action=action_chosen, next_state=new_state_vec, reward=reward))
