@@ -48,7 +48,7 @@ class PolicyNetwork(nn.Module):
         super(PolicyNetwork, self).__init__()
         self.action_space = action_space
         self.policy_nn = PolicyNN(state_dim, action_space)
-        self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate, weight_decay = 1e-5)
+        self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate)
 
     def forward(self, state):
         action_prob = self.policy_nn(state)
@@ -131,9 +131,9 @@ def test(test_episodes):
         sample = test_data[episode].split()
         state_idx = [env.entity2id_[sample[0]], env.entity2id_[sample[1]], 0]
         for t in count():
-            state_vec = env.idx_state(state_idx).to(device)
+            state_vec = torch.from_numpy(env.idx_state(state_idx)).float().to(device)
             action_probs = policy_network(state_vec)
-            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs))
+            action_chosen = np.random.choice(np.arange(action_space), p=np.squeeze(action_probs.detach().numpy()))
             reward, new_state, done = env.interact(state_idx, action_chosen)
             if done or t == max_steps_test:
                 if done:
