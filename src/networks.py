@@ -33,8 +33,6 @@ class MLP(nn.Module):
         
                 self.optimizer.step()
             
-# TODO: Add regularization
-
 class PolicyNN(nn.Module):
 
     def __init__(self, state_dim, action_dim, initializer=None):
@@ -43,10 +41,13 @@ class PolicyNN(nn.Module):
         self.fc2 = nn.Linear(512, 1024, bias=True)
         self.fc3 = nn.Linear(1024, action_dim, bias=True)
         self.softmax = nn.Softmax(dim=1)
+        self.dropout = nn.Dropout(0.25)
 
     def forward(self, state):
         y = F.relu(self.fc1(state))
+        y = self.dropout(y)
         y = F.relu(self.fc2(y))
+        y = self.dropout(y)
         y = F.relu(self.fc3(y))
         action_probs = self.softmax(y)
         return action_probs
