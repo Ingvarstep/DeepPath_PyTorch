@@ -163,15 +163,15 @@ def REINFORCE(training_pairs, policy_network, num_episodes):
                     for t, transition in enumerate(item):
                         teacher_state_batch.append(transition.state)
                         teacher_action_batch.append(transition.action)
-                    teacher_state_batch = torch.cat(teacher_state_batch).to(device)
+                    teacher_state_batch = torch.FloatTensor(teacher_state_batch).squeeze().to(device)
                     teacher_action_batch = torch.LongTensor(teacher_action_batch).to(device)
                     predictions = policy_network(teacher_state_batch)
                     loss = policy_network.compute_loss_rl(predictions, 1, teacher_action_batch)
                     loss.backward()
                     policy_network.optimizer.step()
-
             except Exception as e:
                 print('Teacher guideline failed')
+
         print('Episode time: ', time.time() - start)
         print('\n')
     print('Success percentage:', success / num_episodes)
