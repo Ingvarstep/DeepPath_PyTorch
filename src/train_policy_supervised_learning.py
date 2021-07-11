@@ -72,7 +72,7 @@ def train_deep_path():
 
     policy_network = PolicyNetwork(state_dim, action_space).to(device)
     f = open(relationPath)
-    train_data = f.readlines()[:2]
+    train_data = f.readlines()
     f.close()
     num_samples = len(train_data)
 
