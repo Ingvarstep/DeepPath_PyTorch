@@ -48,7 +48,7 @@ class PolicyNetwork(nn.Module):
         super(PolicyNetwork, self).__init__()
         self.action_space = action_space
         self.policy_nn = PolicyNN(state_dim, action_space)
-        self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(self.policy_nn.parameters(), lr=learning_rate, weight_decay = 1e-5)
 
     def forward(self, state):
         action_prob = self.policy_nn(state)
