@@ -33,7 +33,7 @@ max_steps_test = 50
 
 relation = sys.argv[1]
 
-dataPath = '../NELL-995/'
+dataPath = sys.argv[2]
 model_dir = '../models'
 model_name = 'policy_supervised_' + relation
 # episodes = int(sys.argv[2])
@@ -87,6 +87,7 @@ def train_deep_path():
 
         env = KGEnvironment(dataPath, train_data[episode % num_samples])
         sample = train_data[episode % num_samples].split()
+        # good_episodes = teacher(sample[0], sample[1], 5, env, graphpath)
         try:
             good_episodes = teacher(sample[0], sample[1], 5, env, graphpath)
         except Exception as e:
